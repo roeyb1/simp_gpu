@@ -6,7 +6,7 @@
         {
             "label": "build",
             "type": "shell",
-            "command": "jai ${workspaceFolder}/examples/basic.jai -output_path bin/",
+            "command": "jai ${workspaceFolder}/examples/build.jai",
             "problemMatcher": [
                 {
                     "severity": "error",

@@ -111,6 +111,7 @@ VK_API_VERSION_PATCH   :: (version: u32) -> u32 { return version & 0xfff; }
 
 #scope_module
     lcpp :: #library,system,link_always "libc++";
+    lstdcpp :: #library,system,link_always "libstdc++";
 
 #scope_export // -------------------------------------------------------------------------------------------- { MODULE }
 
