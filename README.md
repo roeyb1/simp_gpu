@@ -11,4 +11,3 @@ Assumptions that we make which allow the API to be simple:
 - Most CPU-visible memory is host coherent uncached memory.
 - All resources are concurrent between all queues.
 - texture layout GENERAL. (see VK_KHR_unified_layouts).
-- 

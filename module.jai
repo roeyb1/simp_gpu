@@ -4,6 +4,8 @@ Gpu_Pipeline :: #type,distinct s64;
 
 Gpu_Texture :: #type,distinct s64;
 
+Gpu_Texture_View :: #type,distinct s64;
+
 Gpu_Depth_Stencil_State :: #type,distinct s64;
 
 Gpu_Blend_State :: #type,distinct s64;
@@ -316,8 +318,8 @@ Gpu_Texture_Desc :: struct {
     type: Texture_Type = ._2D;
     dimensions: [3] u32;
 
-    mip_count: u32 = 1;
-    layer_count: u32 = 1;
+    mip_count: u8 = 1;
+    layer_count: u16 = 1;
     sample_count: u32 = 1;
 
     format: Format = .UNDEFINED;
@@ -390,54 +392,6 @@ gpu_wait_idle :: () {
     vkDeviceWaitIdle(vk_device);
 }
 
-// ----------------------------- Textures ------------------------------------
-
-gpu_create_texture :: (desc: Gpu_Texture_Desc) -> Gpu_Texture {
-    image_create_info := VkImageCreateInfo.{
-        format = desc.format.(VkFormat),
-        extent = VkExtent3D.{desc.dimensions[0], desc.dimensions[1], desc.dimensions[2]},
-        imageType = desc.type.(VkImageType),
-        mipLevels = desc.mip_count,
-        arrayLayers = desc.layer_count,
-        samples = desc.sample_count.(VkSampleCountFlagBits),
-        usage = desc.usage.(VkImageUsageFlagBits),
-        sharingMode = .CONCURRENT,
-        queueFamilyIndexCount = all_queue_family_indices.count.(u32),
-        pQueueFamilyIndices = all_queue_family_indices.data,
-        initialLayout = .GENERAL,
-    };
-
-    alloc_create_info := VmaAllocationCreateInfo.{
-        requiredFlags = .DEVICE_LOCAL_BIT
-    };
-
-    image: VkImage;
-    alloc: VmaAllocation;
-
-    alloc_info: VmaAllocationInfo;
-    vk_result := vmaCreateImage(vma, *image_create_info, *alloc_create_info, *image, *alloc, *alloc_info);
-    assert_vk_result(vk_result);
-
-    handle := pool_add(*live_textures, .{desc, image, alloc});
-
-    return handle;
-}
-
-gpu_free :: (texture_handle: Gpu_Texture) {
-    found, texture := pool_remove(*live_textures, texture_handle);
-    assert(found);
-
-    vmaDestroyImage(vma, texture.vk_image, texture.allocation);
-}
-
-gpu_texture_view :: (texture: Gpu_Texture, desc: Gpu_View_Desc) -> Gpu_Texture {
-    return 0;
-}
-
-gpu_rw_texture_view :: (texture: Gpu_Texture, desc: Gpu_View_Desc) -> Gpu_Texture {
-    return 0;
-}
-
 
 // ----------------------------- Pipelines ------------------------------------
 
@@ -483,7 +437,7 @@ gpu_create_semaphore :: (initial: u64) -> Gpu_Semaphore {
 }
 
 gpu_wait_semaphore :: (semaphore_handle: Gpu_Semaphore, value: u64) {
-    semaphore := pool_get(*live_semaphores, semaphore_handle);
+    semaphore := pool_get(live_semaphores, semaphore_handle);
 
     wait_info := VkSemaphoreWaitInfo.{
         semaphoreCount = 1,
@@ -502,6 +456,7 @@ gpu_destroy_semaphore :: (semaphore_handle: Gpu_Semaphore) {
 
 #load "memory.jai";
 #load "command_buffer.jai";
+#load "textures.jai";
 
 #scope_module
 

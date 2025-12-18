@@ -37,6 +37,7 @@ main :: () {
             usage = .SAMPLED | .TRANSFER_DST
         };
         texture := gpu_create_texture(texture_desc);
+        view := gpu_texture_view(texture);
 
         gpu_free(texture);
     }

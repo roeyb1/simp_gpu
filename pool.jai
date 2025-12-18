@@ -21,7 +21,7 @@ pool_remove :: (using pool: *Pool, handle: pool.Handle_Type) -> bool, pool.Value
     return true, values[index];
 }
 
-pool_get :: (using pool: *Pool, handle: pool.Handle_Type) -> *pool.Value_Type {
+pool_get :: (using pool: Pool, handle: pool.Handle_Type) -> *pool.Value_Type {
     index := (handle - 1).(s64);
     assert(index >= 0 && index < values.count);
     return *values[index];
