@@ -8,7 +8,7 @@
             "name": "Basic - Windows",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/exampes/basic.exe",
+            "program": "${workspaceFolder}/examples/basic.exe",
             "args": [
             ],
             "console":"integratedTerminal",
