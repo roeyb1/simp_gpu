@@ -247,6 +247,11 @@ gpu_begin_render_pass :: (cmd: Gpu_Command_Buffer, desc: Gpu_Render_Pass_Desc) {
     render_info.renderArea = render_area;
 
     vkCmdBeginRendering(vk_cmd_buff, *render_info);
+
+    // for ease of use, always set the viewport to the full viewport.
+    // #todo: Custom control over viewports will be required
+    viewport := VkViewport.{x = 0, y = 0, width = xx render_area.extent.width, height = xx render_area.extent.height, minDepth = 0, maxDepth = 1};
+    vkCmdSetViewport(vk_cmd_buff, 0, 1, *viewport);
 }
 
 gpu_end_render_pass :: (cmd: Gpu_Command_Buffer) {
@@ -255,7 +260,14 @@ gpu_end_render_pass :: (cmd: Gpu_Command_Buffer) {
 }
 
 gpu_draw_indexed_instanced :: (cmd: Gpu_Command_Buffer, vertex_data: Gpu_Ptr, index_data: Gpu_Ptr, index_count: u32, instance_count: u32) {
+    vk_cmd_buff := get_cmd_buff(cmd);
 
+    // for now, vertex buffer is bound via push_consts.
+    vkCmdPushConstants(vk_cmd_buff, vk_pipeline_layout, .ALL, 0, size_of(VkDeviceAddress), *vertex_data);
+
+    index_buffer := get_buffer(index_data);
+    vkCmdBindIndexBuffer(vk_cmd_buff, index_buffer, 0, .UINT32);
+    vkCmdDrawIndexed(vk_cmd_buff, index_count, instance_count, 0, 0, 0);
 }
 
 

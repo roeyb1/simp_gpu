@@ -138,4 +138,10 @@ remove_gpu_memory_range :: (start_ptr: Gpu_Ptr) {
     }
 }
 
+get_buffer :: (gpu_ptr: Gpu_Ptr) -> VkBuffer {
+    found, alloc := table_find(*gpu_allocations, gpu_ptr);
+    assert(found);
+    return alloc.vk_buffer;
+}
+
 #import "Hash_Table";
