@@ -1,5 +1,4 @@
 struct PS_Input {
-    float4 position : SV_Position;
 }
 
 [shader("pixel")]

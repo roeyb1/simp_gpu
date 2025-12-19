@@ -2,20 +2,16 @@ struct VS_Output {
     float4 position : SV_POSITION;
 }
 
-struct Param_Block {
+struct Push_Consts {
     float2* positions;
 };
 
-struct Push_Consts {
-    Param_Block* params;
-};
-
 [vk::push_constant]
-Push_Consts gpc;
+Push_Consts pc;
 
 [shader("vertex")]
 VS_Output main(uint vertex_id: SV_VertexID) {
     VS_Output output;
-    output.position = float4(gpc.params.positions[vertex_id], 0., 1.);
+    output.position = float4(pc.positions[vertex_id], 0., 1.);
     return output;
 }

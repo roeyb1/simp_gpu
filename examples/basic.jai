@@ -1,4 +1,5 @@
 main :: () {
+    //init_renderdoc();
     gpu_init();
 
     transfer_queue := gpu_get_queue(.TRANSFER, 0);
@@ -71,14 +72,16 @@ main :: () {
         vertex_buffer_ptr, vertex_gpu := gpu_malloc(6 * size_of(float));
         vertex_buffer := cast(*Vertex2D) vertex_buffer_ptr;
         vertex_buffer[0] = .{-0.5, +0.5};
-        vertex_buffer[1] = .{+0.5, +0.5};
-        vertex_buffer[2] = .{+0.0, -0.5};
+        vertex_buffer[1] = .{+0.0, -0.5};
+        vertex_buffer[2] = .{+0.5, +0.5};
 
         index_buffer_ptr, index_gpu := gpu_malloc(3 * size_of(u32));
         index_buffer := cast(*u32) index_buffer_ptr;
         index_buffer[0] = 0;
         index_buffer[1] = 1;
         index_buffer[2] = 2;
+
+        //rdoc_api.StartFrameCapture(null, null);
 
         cmd_buff := gpu_start_command_recording(main_queue);
         {
@@ -88,7 +91,7 @@ main :: () {
                         view = view,
                         load_op = .CLEAR,
                         store_op = .STORE,
-                        clear_color = .[0, 0, 0, 0],
+                        clear_color = .[0, 0, 0, 1],
                     }
                 ]
             };
@@ -104,30 +107,56 @@ main :: () {
 
         gpu_wait_idle();
 
+        //assert(rdoc_api.EndFrameCapture(null, null) == 1);
+
         gpu_free(vertex_buffer);
         gpu_free(index_buffer);
         gpu_free_pipeline(graphics_pipeline);
         gpu_free(texture);
     }
 
-    for 0..200 {
-        for 0..127 {
-            cmd_buff := gpu_start_command_recording(main_queue);
+    //for 0..200 {
+    //    for 0..127 {
+    //        cmd_buff := gpu_start_command_recording(main_queue);
 
-            gpu_submit(main_queue, cmd_buff);
+    //        gpu_submit(main_queue, cmd_buff);
 
-            cmd_buff = gpu_start_command_recording(c1_queue);
-            gpu_submit(c1_queue, cmd_buff);
+    //        cmd_buff = gpu_start_command_recording(c1_queue);
+    //        gpu_submit(c1_queue, cmd_buff);
 
-            cmd_buff = gpu_start_command_recording(c2_queue);
-            gpu_submit(c1_queue, cmd_buff);
-        }
+    //        cmd_buff = gpu_start_command_recording(c2_queue);
+    //        gpu_submit(c1_queue, cmd_buff);
+    //    }
 
-        gpu_wait_idle();
-    }
+    //    gpu_wait_idle();
+    //}
 
     gpu_shutdown();
 }
 
+init_renderdoc :: () {
+    #if OS == .LINUX {
+        #import "POSIX";
+
+        mod := dlopen("./librenderdoc.so", RTLD_NOW | RTLD_GLOBAL);
+        assert(mod != null);
+        get_api := cast(pRENDERDOC_GetAPI)dlsym(mod, "RENDERDOC_GetAPI");
+    } else {
+        #import "Windows";
+
+        mod := GetModuleHandleA("renderdoc.dll");
+        assert(mod != null);
+        get_api := cast(pRENDERDOC_GetAPI)GetProcAddress(mod, "RENDERDOC_GetAPI");
+    }
+
+    ret := get_api(.eRENDERDOC_API_Version_1_6_0, cast(**void)(*rdoc_api));
+    assert(ret == 1);
+}
+
+rdoc_api: *RENDERDOC_API_1_6_0;
+
 #import,file "../../simp_gpu/module.jai"(VALIDATION = true);
+#import,file "../../simp_gpu/modules/renderdoc/module.jai";
 #import "File";
+
+#import "Basic";

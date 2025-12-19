@@ -198,7 +198,10 @@ gpu_begin_render_pass :: (cmd: Gpu_Command_Buffer, desc: Gpu_Render_Pass_Desc) {
             resolveMode = .NONE,
             loadOp = it.load_op.(VkAttachmentLoadOp),
             storeOp = it.store_op.(VkAttachmentStoreOp),
-            clearValue.color.uint32 = it.clear_color,
+            clearValue.color._float32[0] = xx it.clear_color[0],
+            clearValue.color._float32[1] = xx it.clear_color[1],
+            clearValue.color._float32[2] = xx it.clear_color[2],
+            clearValue.color._float32[3] = xx it.clear_color[3],
         };
     }
 
@@ -247,11 +250,6 @@ gpu_begin_render_pass :: (cmd: Gpu_Command_Buffer, desc: Gpu_Render_Pass_Desc) {
     render_info.renderArea = render_area;
 
     vkCmdBeginRendering(vk_cmd_buff, *render_info);
-
-    // for ease of use, always set the viewport to the full viewport.
-    // #todo: Custom control over viewports will be required
-    viewport := VkViewport.{x = 0, y = 0, width = xx render_area.extent.width, height = xx render_area.extent.height, minDepth = 0, maxDepth = 1};
-    vkCmdSetViewport(vk_cmd_buff, 0, 1, *viewport);
 }
 
 gpu_end_render_pass :: (cmd: Gpu_Command_Buffer) {
@@ -261,6 +259,14 @@ gpu_end_render_pass :: (cmd: Gpu_Command_Buffer) {
 
 gpu_draw_indexed_instanced :: (cmd: Gpu_Command_Buffer, vertex_data: Gpu_Ptr, index_data: Gpu_Ptr, index_count: u32, instance_count: u32) {
     vk_cmd_buff := get_cmd_buff(cmd);
+
+    render_area: VkRect2D = .{offset = .{0, 0}, extent = .{1024, 1024}};
+    // for ease of use, always set the viewport to the full viewport.
+    // #todo: Custom control over viewports will be required
+    viewport := VkViewport.{x = 0, y = 0, width = xx render_area.extent.width, height = xx render_area.extent.height, minDepth = 0, maxDepth = 1};
+    vkCmdSetViewport(vk_cmd_buff, 0, 1, *viewport);
+    // #todo: custom control over scissor will be required.
+    vkCmdSetScissor(vk_cmd_buff, 0, 1, *render_area);
 
     // for now, vertex buffer is bound via push_consts.
     vkCmdPushConstants(vk_cmd_buff, vk_pipeline_layout, .ALL, 0, size_of(VkDeviceAddress), *vertex_data);
