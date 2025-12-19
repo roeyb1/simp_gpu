@@ -8,6 +8,9 @@ gpu_create_graphics_pipeline :: (vertex_spirv: [] u8, pixel_spirv: [] u8, raster
     if vk_pipeline_layout == VK_NULL_HANDLE {
         create_global_pipeline_layout();
     }
+
+    shader_stages: [2] VkPipelineShaderStageCreateInfo;
+
     // 16 seems like a reasonable cap on this to prevent heap allocating for no reason here.
     MAX_ATTACHMENTS :: 16;
     attachment_formats: [MAX_ATTACHMENTS] VkFormat;
@@ -86,7 +89,8 @@ gpu_create_graphics_pipeline :: (vertex_spirv: [] u8, pixel_spirv: [] u8, raster
 
     pipeline_create_info := VkGraphicsPipelineCreateInfo.{
         pNext = *pipeline_rendering_create_info,
-        stageCount = 2,
+        stageCount = shader_stages.count.(u32),
+        pStages = shader_stages.data,
         //pVertexInputState,
         pInputAssemblyState = *input_assembly_state,
         pRasterizationState = *rasterization_state,

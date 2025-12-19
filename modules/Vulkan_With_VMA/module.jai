@@ -93,6 +93,8 @@ VK_API_VERSION_PATCH   :: (version: u32) -> u32 { return version & 0xfff; }
         libvulkan :: #library,no_dll "libs/vulkan-1";
     }
 
+    libcpmt :: #library,system,link_always "libcpmt.lib";
+
 #scope_export // -------------------------------------------------------------------------------------------- { EXPORT }
 
     #if MEMORY_ALLOCATOR_DEBUG {
