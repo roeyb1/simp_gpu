@@ -1,4 +1,4 @@
-#module_parameters(VALIDATION := false);
+#module_parameters(VALIDATION := false, ENABLE_RENDER_CAPTURE := false);
 
 Gpu_Pipeline :: #type,distinct s64;
 
@@ -397,6 +397,9 @@ Gpu_Render_Pass_Desc :: struct {
 // ----------------------------- Global ------------------------------------
 
 gpu_init :: () {
+    #if ENABLE_RENDER_CAPTURE {
+        gpu_capture_init();
+    }
     create_instance();
     create_device();
     create_descriptor_buffer();
@@ -495,6 +498,7 @@ gpu_destroy_semaphore :: (semaphore_handle: Gpu_Semaphore) {
 #load "bindless.jai";
 #load "pipeline.jai";
 #load "shader_compiler.jai";
+#load "render_capture.jai";
 
 #scope_module
 

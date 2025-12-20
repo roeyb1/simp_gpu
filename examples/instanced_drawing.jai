@@ -1,5 +1,4 @@
 main :: () {
-    init_renderdoc();
     gpu_init();
 
     main_queue := gpu_get_queue(.MAIN, 0);
@@ -50,7 +49,7 @@ main :: () {
     pixel_data, pixel_gpu := gpu_malloc(3 * size_of(float));
     pixel_data.(*[3] float).* = .[1., 0., 1.];
 
-    rdoc_api.StartFrameCapture(null, null);
+    gpu_capture_start();
 
     cmd_buff := gpu_start_command_recording(main_queue);
     {
@@ -76,7 +75,7 @@ main :: () {
 
     gpu_wait_idle();
 
-    assert(rdoc_api.EndFrameCapture(null, null) == 1);
+    gpu_capture_end();
 
     gpu_free(vertex_buffer);
     gpu_free(index_buffer);
