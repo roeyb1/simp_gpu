@@ -292,6 +292,12 @@ gpu_begin_render_pass :: (cmd: Gpu_Command_Buffer, desc: Gpu_Render_Pass_Desc) {
     render_info.renderArea = render_area;
 
     vkCmdBeginRendering(vk_cmd_buff, *render_info);
+
+    // #todo: Custom control over viewports will be required
+    viewport := VkViewport.{x = 0, y = 0, width = xx render_area.extent.width, height = xx render_area.extent.height, minDepth = 0, maxDepth = 1};
+    vkCmdSetViewport(vk_cmd_buff, 0, 1, *viewport);
+    // #todo: custom control over scissor will be required.
+    vkCmdSetScissor(vk_cmd_buff, 0, 1, *render_area);
 }
 
 gpu_end_render_pass :: (cmd: Gpu_Command_Buffer) {
@@ -301,15 +307,6 @@ gpu_end_render_pass :: (cmd: Gpu_Command_Buffer) {
 
 gpu_draw_indexed_instanced :: (cmd: Gpu_Command_Buffer, vertex_data: Gpu_Ptr, pixel_data: Gpu_Ptr, index_data: Gpu_Ptr, index_count: u32, instance_count: u32) {
     vk_cmd_buff := get_cmd_buff(cmd);
-
-    // hard code this for now until dynamic viewport/scissor is set up.
-    render_area: VkRect2D = .{offset = .{0, 0}, extent = .{1024, 1024}};
-    // for ease of use, always set the viewport to the full viewport.
-    // #todo: Custom control over viewports will be required
-    viewport := VkViewport.{x = 0, y = 0, width = xx render_area.extent.width, height = xx render_area.extent.height, minDepth = 0, maxDepth = 1};
-    vkCmdSetViewport(vk_cmd_buff, 0, 1, *viewport);
-    // #todo: custom control over scissor will be required.
-    vkCmdSetScissor(vk_cmd_buff, 0, 1, *render_area);
 
     vkCmdPushConstants(vk_cmd_buff, vk_pipeline_layout, .VERTEX_BIT, 0, size_of(VkDeviceAddress), *vertex_data);
     vkCmdPushConstants(vk_cmd_buff, vk_pipeline_layout, .FRAGMENT_BIT, 1 * size_of(VkDeviceAddress), size_of(VkDeviceAddress), *pixel_data);
