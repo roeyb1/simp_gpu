@@ -293,12 +293,6 @@ Stage :: enum {
     ALL                     :: 0x00010000;
 }
 
-Signal :: enum {
-    ATOMIC_SET;
-    ATOMIC_MAX;
-    ATOMIC_OR;
-}
-
 Gpu_Queue_Type :: enum u8 {
     MAIN        :: 0;
     COMPUTE     :: 1;

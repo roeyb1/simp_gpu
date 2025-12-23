@@ -4,6 +4,8 @@ struct VertexParams<T> {
 
     [ForceInline]
     T* get() { return data; }
+    [ForceInline]
+    T val() { return *data; }
 };
 
 struct PixelParams<T> {
@@ -12,6 +14,8 @@ struct PixelParams<T> {
 
     [ForceInline]
     T* get() { return data; }
+    [ForceInline]
+    T val() { return *data; }
 };
 
 struct ComputeParams<T> {
@@ -20,4 +24,6 @@ struct ComputeParams<T> {
 
     [ForceInline]
     T* get() { return data; }
+    [ForceInline]
+    T val() { return *data; }
 };
