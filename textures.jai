@@ -28,13 +28,10 @@ gpu_create_texture :: (desc: Gpu_Texture_Desc) -> Gpu_Texture {
 
     handle := pool_add(*live_textures, .{desc = desc, vk_image = image, allocation = alloc});
     
-    // transition the image to the GENERAL layout.
-    // #todo: use the transfer queue for this?
     transfer_queue := gpu_get_queue(.MAIN, 0);
     cmd_buff := gpu_start_command_recording(transfer_queue);
     vk_cmd_buff := get_cmd_buff(cmd_buff);
 
-    // transition the image to be used in shaders.
     image_barrier := VkImageMemoryBarrier2.{
         image = image,
         srcStageMask = cast(u64) VkPipelineStageFlags.TOP_OF_PIPE_BIT,
@@ -128,8 +125,6 @@ gpu_texture_view :: (texture_handle: Gpu_Texture, desc: Gpu_View_Desc = .{}) -> 
         },
     };
     
-    // #todo: support array views.
-
     vk_view: VkImageView;
     vk_result := vkCreateImageView(vk_device, *create_info, null, *vk_view);
     assert_vk_result(vk_result);

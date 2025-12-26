@@ -10,7 +10,6 @@ gpu_start_command_recording :: (queue_handle: Gpu_Queue) -> Gpu_Command_Buffer {
     // How often are commands really recorded per frame? Not much, I doubt that overhead is significant.
     reclaim_completed_command_pools();
 
-    // #todo: factor out
     queue := get_queue(queue_handle);
 
     family_index := queue.type;

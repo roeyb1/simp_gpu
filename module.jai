@@ -496,9 +496,13 @@ gpu_collect_garbage :: () {
     reclaim_completed_command_pools();
 }
 
-// #TODO: is this required as part of the public api?
 gpu_wait_idle :: () {
     vkDeviceWaitIdle(vk_device);
+}
+
+gpu_queue_wait_idle :: (queue: Gpu_Queue) {
+    queue := get_queue(queue);
+    vkQueueWaitIdle(queue.vk_queue);
 }
 
 
