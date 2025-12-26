@@ -185,8 +185,10 @@ gpu_create_sampler :: (desc: Gpu_Sampler_Desc) -> Gpu_Sampler {
 }
 
 gpu_free :: (sampler: Gpu_Sampler) {
-    removed := pool_remove(*live_samplers, sampler);
+    removed, sampler := pool_remove(*live_samplers, sampler);
     assert(removed);
+
+    vkDestroySampler(vk_device, sampler, null);
 }
 
 #scope_module
