@@ -4,6 +4,7 @@ gpu_create_compute_pipeline :: (spirv: [] u8) -> Gpu_Pipeline {
     stage := create_shader_stage(spirv, .COMPUTE_BIT);
 
     create_info := VkComputePipelineCreateInfo.{
+        flags = .CREATE_DESCRIPTOR_BUFFER_BIT_EXT,
         stage = stage,
         layout = vk_pipeline_layout,
     };
