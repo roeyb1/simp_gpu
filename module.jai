@@ -510,7 +510,7 @@ gpu_queue_wait_idle :: (queue: Gpu_Queue) {
 
 gpu_get_queue :: (queue_type: Gpu_Queue_Type, queue_index: u32) -> Gpu_Queue {
     for queues {
-        if it.type == queue_type && it.index == queue_index then return (it_index + 1).(Gpu_Queue);
+        if it.type == queue_type && it.index_in_type == queue_index then return (it_index + 1).(Gpu_Queue);
     }
     return 0;
 }
@@ -828,6 +828,7 @@ create_device :: () {
                 assert(queues[queue_index].vk_queue != VK_NULL_HANDLE);
 
                 queues[queue_index].vk_family = it.queueFamilyIndex;
+                queues[queue_index].global_index = queue_index;
 
                 queue_index += 1;
             }
@@ -900,7 +901,8 @@ vma: VmaAllocator;
 Queue :: struct {
     vk_queue: VkQueue;
     vk_family: u32;
-    index: u32;
+    global_index: u32;
+    index_in_type: u32;
     type: Gpu_Queue_Type;
     
     timeline: VkSemaphore;
@@ -908,13 +910,13 @@ Queue :: struct {
 }
 
 queues := Queue.[
-    .{type = .MAIN, index = 0},
-    .{type = .COMPUTE, index = 0},
-    .{type = .COMPUTE, index = 1},
-    .{type = .COMPUTE, index = 2},
-    .{type = .COMPUTE, index = 3},
-    .{type = .TRANSFER, index = 0},
-    .{type = .TRANSFER, index = 1},
+    .{type = .MAIN,     index_in_type = 0},
+    .{type = .COMPUTE,  index_in_type = 0},
+    .{type = .COMPUTE,  index_in_type = 1},
+    .{type = .COMPUTE,  index_in_type = 2},
+    .{type = .COMPUTE,  index_in_type = 3},
+    .{type = .TRANSFER, index_in_type = 0},
+    .{type = .TRANSFER, index_in_type = 1},
 ];
 
 /** The number of queue families should always at most one per queue type. */

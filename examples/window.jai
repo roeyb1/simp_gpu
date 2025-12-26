@@ -98,7 +98,7 @@ main :: () {
             gpu_end_render_pass(cmd_buff);
         }
 
-        gpu_submit_and_present(main_queue, cmd_buff);
+        gpu_submit_and_present(cmd_buff);
     }
 
     gpu_wait_idle();

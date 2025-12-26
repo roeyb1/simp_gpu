@@ -106,7 +106,7 @@ main :: () {
         }
 
         // submit the command buffer for presentation.
-        gpu_submit_and_present(main_queue, cmd_buff);
+        gpu_submit_and_present(cmd_buff);
     }
 
     gpu_wait_idle();
@@ -141,7 +141,7 @@ load_texture :: (filename: string, format: Format, upload_complete_timeline: Gpu
 
     gpu_copy_to_texture(cmd_buff, texture, staging_gpu);
 
-    gpu_submit(transfer_queue, cmd_buff, signals = .[upload_complete_timeline]);
+    gpu_submit(cmd_buff, signals = .[upload_complete_timeline]);
 
     view := gpu_texture_view(texture);
 

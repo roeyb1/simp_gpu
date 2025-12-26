@@ -24,7 +24,7 @@ main :: () {
         gpu_memcpy(cmd_buff, staging_ptr, gpu_ptr_b, count);
 
 
-        gpu_submit(transfer_queue, cmd_buff);
+        gpu_submit(cmd_buff);
 
         gpu_wait_idle();
 
@@ -50,17 +50,17 @@ main :: () {
     c1_queue := gpu_get_queue(.COMPUTE, 0);
     c2_queue := gpu_get_queue(.COMPUTE, 1);
 
-    for 0..200 {
-        for 0..127 {
+    for outer: 0..200 {
+        for inner: 0..127 {
             cmd_buff := gpu_start_command_recording(main_queue);
 
-            gpu_submit(main_queue, cmd_buff);
+            gpu_submit(cmd_buff);
 
             cmd_buff = gpu_start_command_recording(c1_queue);
-            gpu_submit(c1_queue, cmd_buff);
+            gpu_submit(cmd_buff);
 
             cmd_buff = gpu_start_command_recording(c2_queue);
-            gpu_submit(c1_queue, cmd_buff);
+            gpu_submit(cmd_buff);
         }
 
         gpu_wait_idle();

@@ -76,7 +76,6 @@ gpu_swapchain_acquire :: () -> Gpu_Texture_View {
         transition_swapchain_to_general(cmd_buff);
 
         submit_command_buffer(.{
-            queue_handle = queue_handle,
             cmd_buff = cmd_buff,
             wait_semaphores = .[current_acquire_semaphore()],
         });
@@ -103,7 +102,7 @@ gpu_present :: () {
     assert(vk_result == .SUCCESS || vk_result == .SUBOPTIMAL_KHR || vk_result == .ERROR_OUT_OF_DATE_KHR);
 }
 
-gpu_submit_and_present :: (queue_handle: Gpu_Queue, cmd_buff: Gpu_Command_Buffer) {
+gpu_submit_and_present :: (cmd_buff: Gpu_Command_Buffer) {
     vk_cmd_buff := get_cmd_buff(cmd_buff);
 
     image_barrier := VkImageMemoryBarrier2.{
@@ -131,7 +130,6 @@ gpu_submit_and_present :: (queue_handle: Gpu_Queue, cmd_buff: Gpu_Command_Buffer
     vkCmdPipelineBarrier2(vk_cmd_buff, *dep_info);
 
     submit_command_buffer(.{
-        queue_handle = queue_handle,
         cmd_buff = cmd_buff,
         signal_semaphores = .[current_present_semaphore()],
         signal_timelines = .[.{gpu_frame_timeline, cpu_frame_timeline}]
