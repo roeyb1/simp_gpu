@@ -84,7 +84,7 @@ main :: () {
                         view = swapchain_image,
                         load_op = .CLEAR,
                         store_op = .STORE,
-                        clear_color = .[0, 0, 0, 1],
+                        clear_color._float = .[0, 0, 0, 1],
                     }
                 ]
             };

@@ -216,10 +216,7 @@ gpu_begin_render_pass :: (cmd: Gpu_Command_Buffer, desc: Gpu_Render_Pass_Desc) {
             resolveMode = .NONE,
             loadOp = it.load_op.(VkAttachmentLoadOp),
             storeOp = it.store_op.(VkAttachmentStoreOp),
-            clearValue.color._float32[0] = xx it.clear_color[0],
-            clearValue.color._float32[1] = xx it.clear_color[1],
-            clearValue.color._float32[2] = xx it.clear_color[2],
-            clearValue.color._float32[3] = xx it.clear_color[3],
+            clearValue.color = cast,force(VkClearColorValue) it.clear_color,
         };
     }
 
@@ -242,7 +239,7 @@ gpu_begin_render_pass :: (cmd: Gpu_Command_Buffer, desc: Gpu_Render_Pass_Desc) {
             resolveMode = .NONE,
             loadOp = desc.depth_target.load_op.(VkAttachmentLoadOp),
             storeOp = desc.depth_target.store_op.(VkAttachmentStoreOp),
-            clearValue.depthStencil.depth = desc.depth_target.clear_value,
+            clearValue.depthStencil.depth = desc.depth_target.clear_value.depth,
         };
         render_info.pDepthAttachment = *depth_attachment;
     }
@@ -260,7 +257,7 @@ gpu_begin_render_pass :: (cmd: Gpu_Command_Buffer, desc: Gpu_Render_Pass_Desc) {
             resolveMode = .NONE,
             loadOp = desc.stencil_target.load_op.(VkAttachmentLoadOp),
             storeOp = desc.stencil_target.store_op.(VkAttachmentStoreOp),
-            clearValue.depthStencil.stencil = desc.stencil_target.clear_color[0],
+            clearValue.depthStencil.stencil = desc.stencil_target.clear_value.stencil,
         };
         render_info.pStencilAttachment = *stencil_attachment;
     }

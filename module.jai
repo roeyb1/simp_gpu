@@ -430,8 +430,15 @@ Gpu_Render_Pass_Attachment_Desc :: struct {
     load_op: Load_Op;
     store_op: Store_Op;
     union {
-        clear_value: float;
-        clear_color: [4] u32;
+        clear_color: union {
+            _float: [4] float;
+            _uint: [4] u32;
+            _int: [4] s32;
+        };
+        clear_value: struct {
+            depth: float;
+            stencil: u32;
+        };
     };
 }
 
