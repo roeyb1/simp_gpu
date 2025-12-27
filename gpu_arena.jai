@@ -15,8 +15,12 @@ gpu_make_arena :: (size: s64) -> Gpu_Arena {
 }
 
 gpu_arena_alloc :: (using arena: *Gpu_Arena, $type: Type, min_alignment: s64 = 16) -> *type, Gpu_Ptr {
+    result_cpu, result_gpu := gpu_arena_alloc(arena, size_of(type), min_alignment);
+    return result_cpu.(*type), result_gpu;
+}
+
+gpu_arena_alloc :: (using arena: *Gpu_Arena, alloc_size: s64, min_alignment: s64 = 16) -> *void, Gpu_Ptr {
     alignment := calculate_alignment(min_alignment);
-    alloc_size := size_of(type);
     aligned_size := align_forward(alloc_size, alignment);
     if head + aligned_size >= size {
         return null, 0;
@@ -25,7 +29,7 @@ gpu_arena_alloc :: (using arena: *Gpu_Arena, $type: Type, min_alignment: s64 = 1
     result_cpu := arena.cpu + arena.head;
     result_gpu := arena.gpu + arena.head.(Gpu_Ptr);
     arena.head += aligned_size;
-    return result_cpu.(*type), result_gpu;
+    return result_cpu, result_gpu;
 }
 
 gpu_reset_arena :: (arena: *Gpu_Arena) {
