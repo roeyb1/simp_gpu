@@ -118,6 +118,28 @@ write_texture_descriptor :: (vk_view: VkImageView, index: Gpu_Texture_View) {
     vkGetDescriptorEXT(vk_device, *get_info, image_descriptor_size, element_ptr);
 }
 
+write_rw_texture_descriptor :: (vk_view: VkImageView, index: Gpu_Texture_View) {
+    binding_offset: VkDeviceSize;
+    vkGetDescriptorSetLayoutBindingOffsetEXT(vk_device, bindless_set_layout, RW_TEXTURE_BINDING, *binding_offset);
+
+    binding := bindless_buffer.mapped + binding_offset;
+
+    image_descriptor_size := descriptor_properties.storageImageDescriptorSize;
+    element_ptr := binding + (index.(u64) * image_descriptor_size);
+
+    image_info := VkDescriptorImageInfo.{
+        imageView = vk_view,
+        imageLayout = .GENERAL,
+    };
+
+    get_info := VkDescriptorGetInfoEXT.{
+        type = .STORAGE_IMAGE,
+        data.pSampledImage = *image_info,
+    };
+
+    vkGetDescriptorEXT(vk_device, *get_info, image_descriptor_size, element_ptr);
+}
+
 write_sampler_descriptor :: (vk_sampler: VkSampler, index: Gpu_Sampler) {
     binding_offset: VkDeviceSize;
     vkGetDescriptorSetLayoutBindingOffsetEXT(vk_device, bindless_set_layout, SAMPLER_BINDING, *binding_offset);

@@ -143,7 +143,12 @@ gpu_texture_view :: (texture_handle: Gpu_Texture, desc: Gpu_View_Desc = .{}) -> 
 
     array_add(*texture.views, handle,, cpu_allocator);
 
-    write_texture_descriptor(vk_view, handle);
+    if texture.desc.usage & .SAMPLED != 0 {
+        write_texture_descriptor(vk_view, handle);
+    }
+    if texture.desc.usage & .STORAGE != 0 {
+        write_rw_texture_descriptor(vk_view, handle);
+    }
     return handle;
 }
 
@@ -220,6 +225,8 @@ Texture_View :: struct {
 }
 
 live_textures: Pool(Gpu_Texture, Texture, max = MAX_IMAGES);
+// #todo: readwrite and readonly textures both share the same index space.
+// This effectively drops the usable index space by half. Need to split views into separate pools.
 live_views: Pool(Gpu_Texture_View, Texture_View, max = MAX_IMAGES);
 live_samplers: Pool(Gpu_Sampler, VkSampler,max = MAX_SAMPLERS);
 
