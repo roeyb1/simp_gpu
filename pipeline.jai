@@ -3,8 +3,10 @@
 gpu_create_compute_pipeline :: (spirv: [] u8) -> Gpu_Pipeline {
     stage := create_shader_stage(spirv, .COMPUTE_BIT);
 
+    use_descriptor_buffer := is_optional_ext_supported(.DESCRIPTOR_BUFFER);
+
     create_info := VkComputePipelineCreateInfo.{
-        flags = .CREATE_DESCRIPTOR_BUFFER_BIT_EXT,
+        flags = ifx use_descriptor_buffer then .CREATE_DESCRIPTOR_BUFFER_BIT_EXT else xx 0,
         stage = stage,
         layout = vk_pipeline_layout,
     };
@@ -116,8 +118,10 @@ gpu_create_graphics_pipeline :: (vertex_spirv: [] u8, pixel_spirv: [] u8, raster
     //    num_dynamic_states += 1;
     //}
 
+    use_descriptor_buffer := is_optional_ext_supported(.DESCRIPTOR_BUFFER);
+
     pipeline_create_info := VkGraphicsPipelineCreateInfo.{
-        flags = .CREATE_DESCRIPTOR_BUFFER_BIT_EXT,
+        flags = ifx use_descriptor_buffer then .CREATE_DESCRIPTOR_BUFFER_BIT_EXT else xx 0,
         pNext = *pipeline_rendering_create_info,
         stageCount = shader_stages.count.(u32),
         pStages = shader_stages.data,

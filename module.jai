@@ -534,7 +534,7 @@ gpu_init :: (optional_features: Gpu_Optional_Features = .NONE) -> Gpu_Result {
     return_if_error(result);
     result = create_device();
     return_if_error(result);
-    result = create_descriptor_buffer();
+    result = initialize_descriptors();
     return_if_error(result);
 
     result = create_global_pipeline_layout();
@@ -566,7 +566,7 @@ gpu_shutdown :: () {
     }
 
     vkDestroyPipelineLayout(vk_device, vk_pipeline_layout, null);
-    destroy_bindless_buffer();
+    destroy_descriptors();
     vkDestroyDescriptorSetLayout(vk_device, bindless_set_layout, null);
     vmaDestroyAllocator(vma);
     vkDestroyDevice(vk_device, null);
@@ -767,7 +767,7 @@ create_device :: () -> Gpu_Result {
     // #todo: praise the unified layouts! (still not widely available).
     //array_add(*required_extensions, "VK_KHR_unified_layouts");
 
-    optional_extensions[Optional_Extensions.DESCRIPTOR_BUFFER] = .{
+    optional_extensions[Optional_Extension.DESCRIPTOR_BUFFER] = .{
         name = "VK_EXT_descriptor_buffer",
     };
 
@@ -1142,7 +1142,7 @@ generate_get_device_proc_addr :: (proc_name: string) ->string #compile_time {
 // we remember the allocator passed into gpu_init and ensure all cpu allocations occur using that allocator.
 cpu_allocator: Allocator;
 
-Optional_Extensions :: enum {
+Optional_Extension :: enum {
     DESCRIPTOR_BUFFER :: 0;
 }
 
@@ -1151,7 +1151,11 @@ Optional_Extension_Info :: struct {
     supported: bool;
 }
 
-optional_extensions: [#run enum_highest_value(Optional_Extensions) + 1] Optional_Extension_Info;
+optional_extensions: [#run enum_highest_value(Optional_Extension) + 1] Optional_Extension_Info;
+
+is_optional_ext_supported :: (ext: Optional_Extension) -> bool {
+    return optional_extensions[ext].supported;
+}
 
 requested_optional_features: Gpu_Optional_Features;
 
