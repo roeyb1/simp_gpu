@@ -141,9 +141,12 @@ write_sampler_descriptor :: (vk_sampler: VkSampler, index: Gpu_Sampler) {
 }
 
 destroy_descriptors :: () {
-    vkFreeDescriptorSets(vk_device, bindless_pool, 1, *bindless_set);
-    vkDestroyDescriptorPool(vk_device, bindless_pool, null);
-    vmaDestroyBuffer(vma, bindless_buffer.vk_buffer, bindless_buffer.allocation);
+    if is_optional_ext_supported(.DESCRIPTOR_BUFFER) {
+        vmaDestroyBuffer(vma, bindless_buffer.vk_buffer, bindless_buffer.allocation);
+    } else {
+        vkFreeDescriptorSets(vk_device, bindless_pool, 1, *bindless_set);
+        vkDestroyDescriptorPool(vk_device, bindless_pool, null);
+    }
 }
 
 bindless_set_layout: VkDescriptorSetLayout;
