@@ -1,5 +1,6 @@
 main :: () {
-    gpu_init();
+    result := gpu_init();
+    assert(result == .SUCCESS);
 
     transfer_queue := gpu_get_queue(.TRANSFER, 0);
 
@@ -69,6 +70,6 @@ main :: () {
     gpu_shutdown();
 }
 
-#import,file "../module.jai"(VALIDATION = true);
+#import,file "../module.jai"(VALIDATION = true, DEBUG_ASSERTS = false);
 #import "Basic";
 

@@ -306,6 +306,8 @@ Gpu_Result :: enum s32 {
     FATAL_MISSING_REQUIRED_EXTENSION;
     FATAL_MISSING_REQUIRED_FEATURE;
     FATAL_NO_SUITABLE_DEVICE_FOUND;
+    FATAL_NO_GRAPHICS_QUEUE;
+    FATAL_FAILED_TO_QUERY_QUEUE;
 
     FATAL_OUT_OF_GPU_MEMORY;
     FATAL_OUT_OF_CPU_MEMORY;
@@ -842,38 +844,71 @@ create_device :: () -> Gpu_Result {
         }
 
         infos: [3] Queue_Create_Info;
+        queue_families_to_create: u32 = 0;
+        for * queue_families {
+            it.vk_family = U32_MAX;
+        }
         for queue_family_properties {
             supports_graphics := it.queueFlags & .GRAPHICS_BIT;
             supports_compute  := it.queueFlags & .COMPUTE_BIT;
             supports_transfer := it.queueFlags & .TRANSFER_BIT;
 
             // primary queue should support all operations
-            if infos[0].family == U32_MAX && supports_graphics && supports_compute && supports_transfer {
-                infos[0].family = it_index.(u32);
-                infos[0].count = 1;
+            if queue_families[Gpu_Queue_Type.MAIN].vk_family == U32_MAX && supports_graphics && supports_compute && supports_transfer {
+                count: u32 = 1;
+                queue_families[Gpu_Queue_Type.MAIN] = .{
+                    vk_family = it_index.(u32),
+                    count = count,
+                };
+                infos[queue_families_to_create] = .{
+                    family = it_index.(u32),
+                    count = count,
+                };
+                queue_families_to_create += 1;
             }
+
             // compute queues should support compute/transfer
-            if infos[1].family == U32_MAX && !supports_graphics && supports_compute && supports_transfer {
-                infos[1] = .{
-                    family = it_index.(u32),
-                    count = min(it.queueCount, MAX_COMPUTE_QUEUES),
+            if queue_families[Gpu_Queue_Type.COMPUTE].vk_family == U32_MAX && !supports_graphics && supports_compute && supports_transfer {
+                count := min(it.queueCount, MAX_COMPUTE_QUEUES);
+
+                queue_families[Gpu_Queue_Type.COMPUTE] = .{
+                    vk_family = it_index.(u32),
+                    count = count,
                 };
+                infos[queue_families_to_create] = .{
+                    family = it_index.(u32),
+                    count = count,
+                };
+                queue_families_to_create += 1;
             }
-            if infos[2].family == U32_MAX && !supports_graphics && !supports_compute && supports_transfer {
-                infos[2] = .{
-                    family = it_index.(u32),
-                    count = min(it.queueCount, MAX_TRANSFER_QUEUES),
+
+            if queue_families[Gpu_Queue_Type.TRANSFER].vk_family == U32_MAX && !supports_graphics && !supports_compute && supports_transfer {
+                count := min(it.queueCount, MAX_TRANSFER_QUEUES);
+                queue_families[Gpu_Queue_Type.TRANSFER] = .{
+                    vk_family = it_index.(u32),
+                    count = count,
                 };
+                infos[queue_families_to_create] = .{
+                    family = it_index.(u32),
+                    count = count,
+                };
+                queue_families_to_create += 1;
             }
         }
 
-        for infos {
-            queue_create_infos[it_index] = .{
-                queueFamilyIndex = it.family,
-                queueCount = it.count,
+        if queue_families[Gpu_Queue_Type.MAIN].vk_family == U32_MAX {
+            return .FATAL_NO_GRAPHICS_QUEUE;
+        }
+
+        for 0..queue_families_to_create-1 {
+            queue_create_infos[it] = .{
+                queueFamilyIndex = infos[it].family,
+                queueCount = infos[it].count,
                 pQueuePriorities = queue_priorities.data
             };
+            queue_family_indices[it] = infos[it].family;
         }
+        num_queue_families = queue_families_to_create;
     }
 
     // create the device:
@@ -960,17 +995,18 @@ create_device :: () -> Gpu_Result {
     // initialize the queues:
     {
         queue_index: u32 = 0;
-        for queue_create_infos {
-            for queue_index_in_family : 0..it.queueCount-1 {
-                vkGetDeviceQueue(vk_device, it.queueFamilyIndex, queue_index_in_family, *queues[queue_index].vk_queue);
-                assert(queues[queue_index].vk_queue != VK_NULL_HANDLE);
-
-                queues[queue_index].vk_family = it.queueFamilyIndex;
-                queues[queue_index].global_index = queue_index;
-
-                queue_index += 1;
+        for * queues {
+            if it.index_in_type >= queue_families[it.type].count {
+                continue;
             }
-            all_queue_family_indices[it_index] = it.queueFamilyIndex;
+
+            it.vk_family = queue_families[it.type].vk_family;
+            vkGetDeviceQueue(vk_device, it.vk_family, it.index_in_type, *queues[queue_index].vk_queue);
+            if it.vk_queue == VK_NULL_HANDLE {
+                return .FATAL_FAILED_TO_QUERY_QUEUE; // #todo: this doesn't need to be fatal but handling this is involved.
+            }
+            it.global_index = it_index.(u32);
+            queue_index += 1;
         }
 
         // create the timeline semaphores for each queue:
@@ -1065,7 +1101,13 @@ queues := Queue.[
 /** The number of queue families should always at most one per queue type. */
 NUM_QUEUE_FAMILIES :: #run enum_highest_value(Gpu_Queue_Type) + 1;
 
-all_queue_family_indices: [NUM_QUEUE_FAMILIES] u32;
+Queue_Family :: struct {
+    vk_family: u32;
+    count: u32;
+}
+queue_families: [NUM_QUEUE_FAMILIES] Queue_Family;
+queue_family_indices: [NUM_QUEUE_FAMILIES] u32;
+num_queue_families: u32;
 
 get_queue :: (queue_handle: Gpu_Queue) -> *Queue {
     queue_index := queue_handle - 1;

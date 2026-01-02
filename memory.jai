@@ -30,8 +30,8 @@ gpu_malloc :: (size: s64, memory_type: Memory_Type = .DEFAULT) -> (mapped: *void
         usage = .STORAGE_BUFFER_BIT | .SHADER_DEVICE_ADDRESS_BIT,
         size = size.(u64),
         sharingMode = .CONCURRENT,
-        queueFamilyIndexCount = all_queue_family_indices.count.(u32),
-        pQueueFamilyIndices = all_queue_family_indices.data
+        queueFamilyIndexCount = num_queue_families,
+        pQueueFamilyIndices = queue_family_indices.data
     };
 
     // I don't want to expose transfer usage flags to the api so just default to always having it
