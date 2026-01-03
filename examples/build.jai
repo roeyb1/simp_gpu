@@ -60,7 +60,7 @@ copy_module_libraries_to_target :: (output_path: string) {
                 os_name := "win";
                 lib_ext := ".dll";
             case .MACOS;
-                os_name := "macos";
+                os_name := "mac";
                 lib_ext := ".dylib";
             case .LINUX;
                 os_name := "linux";

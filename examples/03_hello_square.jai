@@ -3,11 +3,17 @@ main :: () {
     assert(result == .SUCCESS);
     defer gpu_shutdown();
 
-    window := create_window(1280, 720, "Sample window");
+    #if OS == .MACOS {
+        window := create_window_metal(1280, 720, "Sample window");
+    } else {
+        window := create_window(1280, 720, "Sample window");
+    }
+
     window_type: Native_Window_Type;
 
     #if      OS == .WINDOWS then  window_type = .WIN32;
     else #if OS == .LINUX   then window_type = .X11;
+    else #if OS == .MACOS   then window_type = .COCOA;
     else assert(false, "Unsupported OS");
 
     gpu_init_swapchain(window.(u64), window_type);
@@ -121,3 +127,10 @@ main :: () {
 #import "Basic";
 #import "Window_Creation"(DEFAULT_MSAA = 1);
 #import "Input";
+
+#if OS == .MACOS {
+    #import "Objective_C";
+    #import "Objective_C/AppKit";
+    #import "Metal";
+    #load "macos_window.jai";
+}
