@@ -806,11 +806,6 @@ create_device :: () -> Gpu_Result {
             vkGetPhysicalDeviceProperties2(it, *device_properties);
             vkGetPhysicalDeviceFeatures2(it, *device_features);
 
-            // queue_family_count: u32;
-            // vkGetPhysicalDeviceQueueFamilyProperties(it, *queue_family_count, null);
-
-            // log("device: % (%) - queue_family_count: %", to_string(device_properties.properties.deviceName.data, device_properties.properties.deviceName.count), device_properties.properties.deviceID, queue_family_count);
-
             limits_satisfied := device_properties.properties.limits.maxDescriptorSetStorageBuffers >= MAX_BUFFERS
                 && device_properties.properties.limits.maxDescriptorSetStorageImages >= MAX_IMAGES
                 && device_properties.properties.limits.maxDescriptorSetSampledImages >= MAX_IMAGES;
