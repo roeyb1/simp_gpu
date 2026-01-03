@@ -49,7 +49,7 @@ main :: () {
 
     main_queue := gpu_get_queue(.MAIN, 0);
     c1_queue := gpu_get_queue(.COMPUTE, 0);
-    // c2_queue := gpu_get_queue(.COMPUTE, 1);
+    c2_queue := gpu_get_queue(.COMPUTE, 1);
 
     for outer: 0..200 {
         for inner: 0..127 {
@@ -60,8 +60,8 @@ main :: () {
             _, cmd_buff = gpu_start_command_recording(c1_queue);
             gpu_submit(cmd_buff);
 
-            // _, cmd_buff = gpu_start_command_recording(c2_queue);
-            // gpu_submit(cmd_buff);
+            _, cmd_buff = gpu_start_command_recording(c2_queue);
+            gpu_submit(cmd_buff);
         }
 
         gpu_wait_idle();
