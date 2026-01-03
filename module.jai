@@ -678,10 +678,14 @@ create_instance :: () -> Gpu_Result {
 
     // find extensions
     enabled_extensions: [..] *u8;
+
+    array_add(*enabled_extensions, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+
     #if VALIDATION {
         array_add(*enabled_extensions, VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
         array_add(*enabled_extensions, VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     }
+
     {
         count: u32;
         vkEnumerateInstanceExtensionProperties(null, *count, null);
@@ -736,6 +740,8 @@ create_instance :: () -> Gpu_Result {
         create_info.pNext = *debug_messenger_create_info;
     }
 
+    create_info.flags |= .VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+
     result = vkCreateInstance(*create_info, null, *vk_instance);
     if result != .SUCCESS {
         return .FATAL_MISSING_REQUIRED_EXTENSION;
@@ -765,6 +771,7 @@ create_device :: () -> Gpu_Result {
     array_add(*required_extensions, VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
     array_add(*required_extensions, VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     array_add(*required_extensions, "VK_KHR_synchronization2");
+    array_add(*required_extensions, "VK_KHR_portability_subset");
     // #todo: praise the unified layouts! (still not widely available).
     //array_add(*required_extensions, "VK_KHR_unified_layouts");
 
@@ -792,12 +799,16 @@ create_device :: () -> Gpu_Result {
             return .FATAL_NO_SUITABLE_DEVICE_FOUND;
         }
 
-
         for device_handles {
             device_properties: VkPhysicalDeviceProperties2;
             device_features: VkPhysicalDeviceFeatures2;
             vkGetPhysicalDeviceProperties2(it, *device_properties);
             vkGetPhysicalDeviceFeatures2(it, *device_features);
+
+            // queue_family_count: u32;
+            // vkGetPhysicalDeviceQueueFamilyProperties(it, *queue_family_count, null);
+
+            // log("device: % (%) - queue_family_count: %", to_string(device_properties.properties.deviceName.data, device_properties.properties.deviceName.count), device_properties.properties.deviceID, queue_family_count);
 
             limits_satisfied := device_properties.properties.limits.maxDescriptorSetStorageBuffers >= MAX_BUFFERS
                 && device_properties.properties.limits.maxDescriptorSetStorageImages >= MAX_IMAGES
@@ -827,7 +838,13 @@ create_device :: () -> Gpu_Result {
             //assert(best_score > 0, "None of the available physical devices satisfy the minimum requirements!");
             return .FATAL_NO_SUITABLE_DEVICE_FOUND;
         }
-        vk_physical_device = device_handles[best_device_index];
+
+        #if OS == .MACOS {
+            vk_physical_device = device_handles[0]; // @TODO: hardcoded first device (Macbook M1 PRO)
+        } else {
+            vk_physical_device = device_handles[best_device_index];
+        }
+
         vkGetPhysicalDeviceProperties2(vk_physical_device, *vk_physical_device_properties);
     }
 
@@ -837,6 +854,7 @@ create_device :: () -> Gpu_Result {
         queue_priorities := float.[0., 0., 0., 0.];
         queue_family_properties: [..] VkQueueFamilyProperties;
         supports_present: [..] bool;
+
 
         queue_family_count: u32;
         vkGetPhysicalDeviceQueueFamilyProperties(vk_physical_device, *queue_family_count, null);
@@ -933,6 +951,7 @@ create_device :: () -> Gpu_Result {
                         count = count,
                     };
                     queue_families_to_create += 1;
+                    continue;
                 }
 
                 if queue_families[Gpu_Queue_Type.TRANSFER].vk_family == U32_MAX && supports_transfer {
@@ -1056,7 +1075,7 @@ create_device :: () -> Gpu_Result {
 
         create_info := VkDeviceCreateInfo.{
             pNext = chain,
-            queueCreateInfoCount = queue_create_infos.count.(u32),
+            queueCreateInfoCount = num_queue_families,
             pQueueCreateInfos = queue_create_infos.data,
 
             enabledExtensionCount = enabled_extensions.count.(u32),
@@ -1078,12 +1097,11 @@ create_device :: () -> Gpu_Result {
             }
 
             it.vk_family = queue_families[it.type].vk_family;
-            vkGetDeviceQueue(vk_device, it.vk_family, it.index_in_type, *queues[queue_index].vk_queue);
+            vkGetDeviceQueue(vk_device, it.vk_family, it.index_in_type, *queues[it_index].vk_queue);
             if it.vk_queue == VK_NULL_HANDLE {
-                return .FATAL_FAILED_TO_QUERY_QUEUE; // #todo: this doesn't need to be fatal but handling this is involved.
+                // return .FATAL_FAILED_TO_QUERY_QUEUE; // #todo: this doesn't need to be fatal but handling this is involved.
             }
             it.global_index = it_index.(u32);
-            queue_index += 1;
         }
 
         // create the timeline semaphores for each queue:
