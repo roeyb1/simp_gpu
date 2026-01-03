@@ -20,7 +20,7 @@ create_window_metal :: (width: int, height: int, window_name: string, window_x :
 
     NSWindow.setTitle(window, window_name);
 
-    #if #run macos_create_window_delegate_exists() { // :DecoupleWindowCreationAndInput:
+    #if #exists(context._macos_create_window_delegate) { // :DecoupleWindowCreationAndInput:
         wd := context._macos_create_window_delegate();
         NSWindow.setDelegate(window, wd);
     }
@@ -61,29 +61,4 @@ ns_view_set_layer :: (self: *NSView, layer: *CALayer) {
     func: (*NSView, Selector, *CALayer) -> void #c_call;
     func = xx objc_msgSend;
     func(self, sel_registerName("setLayer:"), layer);
-}
-
-//
-// @Cleanup: These exists() functions can be replaced with #exists() now.
-//
-macos_create_app_delegate_exists :: () -> bool { // :DecoupleWindowCreationAndInput:
-    info := type_info(#Context);
-    for info.members {
-        if it.name == "_macos_create_app_delegate" {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-macos_create_window_delegate_exists :: () -> bool { // :DecoupleWindowCreationAndInput:
-    info := type_info(#Context);
-    for info.members {
-        if it.name == "_macos_create_window_delegate" {
-            return true;
-        }
-    }
-
-    return false;
 }
