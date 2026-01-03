@@ -120,6 +120,24 @@ VK_API_VERSION_PATCH   :: (version: u32) -> u32 { return version & 0xfff; }
 
     libvulkan :: #system_library "libvulkan";
 
+} else #if OS == .MACOS {
+    #load "generated_macos.jai";
+    #load "macos_extras.jai";
+
+    #if MEMORY_ALLOCATOR_DEBUG {
+        vkmemalloc :: #library,no_dll "libs/VkMemAlloc_DEBUG";
+    } else {
+        vkmemalloc :: #library,no_dll "libs/VkMemAlloc";
+    }
+
+#scope_module
+    lcpp   :: #library,system,link_always "c++";      // libc++
+    lcxxabi:: #library,system,link_always "c++abi";   // často potřeba
+
+#scope_export // -------------------------------------------------------------------------------------------- { MODULE }
+
+    libvulkan :: #system_library "libvulkan";
+
 }
 
 #scope_module // -------------------------------------------------------------------------------------------- { MODULE }

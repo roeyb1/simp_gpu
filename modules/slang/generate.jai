@@ -13,16 +13,19 @@ generate_bindings :: () -> bool {
         if OS == {
             case .WINDOWS; output_filename = "windows.jai";
             case .LINUX; output_filename = "linux.jai";
+            case .MACOS; output_filename = "macos.jai";
         }
 
         if OS == {
-            case .WINDOWS; array_add(*libpaths, "./lib/win");
-            case .LINUX; array_add(*libpaths, "./lib/linux");
+            case .WINDOWS; array_add(*libpaths, "./win");
+            case .LINUX; array_add(*libpaths, "./linux");
+            case .MACOS; array_add(*libpaths, "./mac");
         }
 
         if OS == {
             case .WINDOWS; array_add(*libnames, "slang-compiler");
             case .LINUX; array_add(*libnames, "libslang");
+            case .MACOS; array_add(*libnames, "libslang");
         }
 
         array_add(*source_files, tprint("%/slang.h", SLANG_SRC_PATH));

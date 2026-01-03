@@ -10,8 +10,8 @@ gpu_create_texture :: (desc: Gpu_Texture_Desc, optional_signal_texture_ready: []
         samples = desc.sample_count.(VkSampleCountFlagBits),
         usage = desc.usage.(VkImageUsageFlagBits),
         sharingMode = .CONCURRENT,
-        queueFamilyIndexCount = all_queue_family_indices.count.(u32),
-        pQueueFamilyIndices = all_queue_family_indices.data,
+        queueFamilyIndexCount = num_queue_families,
+        pQueueFamilyIndices = queue_family_indices.data,
         initialLayout = .UNDEFINED,
     };
 

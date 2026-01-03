@@ -87,6 +87,14 @@ compile_vulkan_memory_allocator :: () -> bool {
         array_add(*extra_args, "-DVMA_IMPLEMENTATION");
         array_add(*extra_args, "-DNDEBUG");
         array_add(*extra_args, "-fno-exceptions");
+    } else #if OS == .MACOS {
+        array_add(*extra_args, "-DVMA_IMPLEMENTATION");
+        array_add(*extra_args, "-DNDEBUG");
+        array_add(*extra_args, "-fno-exceptions");
+
+        array_add(*extra_args, "-std=c++17");
+        array_add(*extra_args, "-stdlib=libc++");
+        array_add(*extra_args, "-x", "c++");
     }
     // provide path to vulkan.h
     array_add(*extra_args, include);
@@ -109,8 +117,13 @@ generate_bindings :: () -> bool {
             array_add(*libraries, .{filename = "libvulkan"});
             output_filename  = "generated_linux.jai";
         } else #if OS == .MACOS {
-            // @ToDo
-            assert(false);
+            array_add(*libraries, .{ filename = "libvulkan" });
+
+            array_add(*extra_clang_arguments, "-x", "c");
+            array_add(*extra_clang_arguments, "-DVK_USE_PLATFORM_METAL_EXT=1");
+            array_add(*extra_clang_arguments, "-DVK_USE_PLATFORM_MACOS_MVK=1");
+
+            output_filename = "generated_macos.jai";
         } else {
             assert(false);
         }
@@ -230,6 +243,8 @@ vulkan_visitor :: (decl: *Declaration, parent_decl: *Declaration) -> Declaration
         if enum_value_name == "PHYSICAL_DEVICE_INDEX_TYPE_UINT_8_FEATURES" then enum_value_name = "PHYSICAL_DEVICE_INDEX_TYPE_UINT8_FEATURES";
         if enum_value_name == "PHYSICAL_DEVICE_SHADER_BFLOAT_16_FEATURES_KHR" then enum_value_name = "PHYSICAL_DEVICE_SHADER_BFLOAT16_FEATURES_KHR";
         if enum_value_name == "PHYSICAL_DEVICE_SHADER_64BIT_INDEXING_FEATURES_EXT" then enum_value_name = "PHYSICAL_DEVICE_SHADER_64_BIT_INDEXING_FEATURES_EXT";
+
+        if enum_value_name == "MAC_OS_SURFACE_CREATE_INFO_MVK" then enum_value_name = "MACOS_SURFACE_CREATE_INFO_MVK";
 
         enum_value_name = replace(enum_value_name, "H_264", "H264");
         enum_value_name = replace(enum_value_name, "H_265", "H265");

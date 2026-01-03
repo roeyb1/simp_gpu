@@ -306,6 +306,8 @@ Gpu_Result :: enum s32 {
     FATAL_MISSING_REQUIRED_EXTENSION;
     FATAL_MISSING_REQUIRED_FEATURE;
     FATAL_NO_SUITABLE_DEVICE_FOUND;
+    FATAL_NO_GRAPHICS_QUEUE;
+    FATAL_FAILED_TO_QUERY_QUEUE;
 
     FATAL_OUT_OF_GPU_MEMORY;
     FATAL_OUT_OF_CPU_MEMORY;
@@ -328,11 +330,12 @@ Gpu_Result :: enum s32 {
 
 Gpu_Optional_Features :: enum_flags {
     NONE                    :: 0;
-    SHADER_ATOMIC_INT64     :: 1 << 1;
-    SHADER_INT16            :: 1 << 2;
-    SHADER_INT64            :: 1 << 3;
-    SHADER_INT8             :: 1 << 4;
-    STORAGE_PUSH_CONSTANT_8 :: 1 << 5;
+    DESCRIPTOR_BUFFER       :: 1 << 1;
+    SHADER_ATOMIC_INT64     :: 1 << 2;
+    SHADER_INT16            :: 1 << 3;
+    SHADER_INT64            :: 1 << 4;
+    SHADER_INT8             :: 1 << 5;
+    STORAGE_PUSH_CONSTANT_8 :: 1 << 6;
 
     // -- nyi --
     MESH_SHADERS            ;
@@ -403,7 +406,7 @@ Gpu_Raster_Desc :: struct {
 
     depth_format: Format = .UNDEFINED;
     stencil_format: Format = .UNDEFINED;
-    
+
     color_targets: [] Color_Target;
 
     // Optional blend state baked into the pipeline.
@@ -427,7 +430,7 @@ Gpu_Texture_Desc :: struct {
 Gpu_View_Desc :: struct {
     format: Format = .UNDEFINED;
     base_mip: u8 = 0;
-    mip_count: u8 = 0xFF; 
+    mip_count: u8 = 0xFF;
     base_layer: u16 = 0;
     layer_count: u16 = 0xFFFF;
 }
@@ -520,7 +523,7 @@ Gpu_Render_Pass_Desc :: struct {
 
 // ----------------------------- Global ------------------------------------
 
-gpu_init :: (optional_features: Gpu_Optional_Features = .NONE) -> Gpu_Result {
+gpu_init :: (optional_features: Gpu_Optional_Features = .DESCRIPTOR_BUFFER) -> Gpu_Result {
     remember_allocator();
     requested_optional_features = optional_features;
 
@@ -532,7 +535,7 @@ gpu_init :: (optional_features: Gpu_Optional_Features = .NONE) -> Gpu_Result {
     return_if_error(result);
     result = create_device();
     return_if_error(result);
-    result = create_descriptor_buffer();
+    result = initialize_descriptors();
     return_if_error(result);
 
     result = create_global_pipeline_layout();
@@ -564,7 +567,7 @@ gpu_shutdown :: () {
     }
 
     vkDestroyPipelineLayout(vk_device, vk_pipeline_layout, null);
-    destroy_bindless_buffer();
+    destroy_descriptors();
     vkDestroyDescriptorSetLayout(vk_device, bindless_set_layout, null);
     vmaDestroyAllocator(vma);
     vkDestroyDevice(vk_device, null);
@@ -762,9 +765,14 @@ create_device :: () -> Gpu_Result {
     array_add(*required_extensions, VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
     array_add(*required_extensions, VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     array_add(*required_extensions, "VK_KHR_synchronization2");
-    array_add(*required_extensions, "VK_EXT_descriptor_buffer");
     // #todo: praise the unified layouts! (still not widely available).
     //array_add(*required_extensions, "VK_KHR_unified_layouts");
+
+    if requested_optional_features & .DESCRIPTOR_BUFFER != 0 {
+        optional_extensions[Optional_Extension.DESCRIPTOR_BUFFER] = .{
+            name = "VK_EXT_descriptor_buffer",
+        };
+    }
 
     result: VkResult;
 
@@ -794,7 +802,7 @@ create_device :: () -> Gpu_Result {
             limits_satisfied := device_properties.properties.limits.maxDescriptorSetStorageBuffers >= MAX_BUFFERS
                 && device_properties.properties.limits.maxDescriptorSetStorageImages >= MAX_IMAGES
                 && device_properties.properties.limits.maxDescriptorSetSampledImages >= MAX_IMAGES;
-            
+
             if !limits_satisfied then continue;
 
             if device_properties.properties.deviceType == .DISCRETE_GPU {
@@ -842,38 +850,116 @@ create_device :: () -> Gpu_Result {
         }
 
         infos: [3] Queue_Create_Info;
+        queue_families_to_create: u32 = 0;
+        for * queue_families {
+            it.vk_family = U32_MAX;
+        }
         for queue_family_properties {
             supports_graphics := it.queueFlags & .GRAPHICS_BIT;
             supports_compute  := it.queueFlags & .COMPUTE_BIT;
             supports_transfer := it.queueFlags & .TRANSFER_BIT;
 
             // primary queue should support all operations
-            if infos[0].family == U32_MAX && supports_graphics && supports_compute && supports_transfer {
-                infos[0].family = it_index.(u32);
-                infos[0].count = 1;
+            if queue_families[Gpu_Queue_Type.MAIN].vk_family == U32_MAX && supports_graphics && supports_compute && supports_transfer {
+                count: u32 = 1;
+                queue_families[Gpu_Queue_Type.MAIN] = .{
+                    vk_family = it_index.(u32),
+                    count = count,
+                };
+                infos[queue_families_to_create] = .{
+                    family = it_index.(u32),
+                    count = count,
+                };
+                queue_families_to_create += 1;
             }
+
             // compute queues should support compute/transfer
-            if infos[1].family == U32_MAX && !supports_graphics && supports_compute && supports_transfer {
-                infos[1] = .{
-                    family = it_index.(u32),
-                    count = min(it.queueCount, MAX_COMPUTE_QUEUES),
+            if queue_families[Gpu_Queue_Type.COMPUTE].vk_family == U32_MAX && !supports_graphics && supports_compute && supports_transfer {
+                count := min(it.queueCount, MAX_COMPUTE_QUEUES);
+
+                queue_families[Gpu_Queue_Type.COMPUTE] = .{
+                    vk_family = it_index.(u32),
+                    count = count,
                 };
+                infos[queue_families_to_create] = .{
+                    family = it_index.(u32),
+                    count = count,
+                };
+                queue_families_to_create += 1;
             }
-            if infos[2].family == U32_MAX && !supports_graphics && !supports_compute && supports_transfer {
-                infos[2] = .{
-                    family = it_index.(u32),
-                    count = min(it.queueCount, MAX_TRANSFER_QUEUES),
+
+            if queue_families[Gpu_Queue_Type.TRANSFER].vk_family == U32_MAX && !supports_graphics && !supports_compute && supports_transfer {
+                count := min(it.queueCount, MAX_TRANSFER_QUEUES);
+                queue_families[Gpu_Queue_Type.TRANSFER] = .{
+                    vk_family = it_index.(u32),
+                    count = count,
                 };
+                infos[queue_families_to_create] = .{
+                    family = it_index.(u32),
+                    count = count,
+                };
+                queue_families_to_create += 1;
             }
         }
 
-        for infos {
-            queue_create_infos[it_index] = .{
-                queueFamilyIndex = it.family,
-                queueCount = it.count,
+        if queue_families[Gpu_Queue_Type.MAIN].vk_family == U32_MAX {
+            return .FATAL_NO_GRAPHICS_QUEUE;
+        }
+
+        // If we failed to find purely compute/transfer queues, try again to find dedicated queues that are not the primary queue:
+        if queue_families[Gpu_Queue_Type.COMPUTE].vk_family == U32_MAX || queue_families[Gpu_Queue_Type.TRANSFER].vk_family == U32_MAX {
+            primary_queue_family := queue_families[Gpu_Queue_Type.MAIN].vk_family;
+
+            for queue_family_properties {
+                already_used := false;
+                for other_family, _ : queue_families {
+                    if it_index == other_family.vk_family then already_used = true;
+                }
+
+                if already_used then continue;
+
+                supports_compute  := it.queueFlags & .COMPUTE_BIT;
+                supports_transfer := it.queueFlags & .TRANSFER_BIT;
+
+                if queue_families[Gpu_Queue_Type.COMPUTE].vk_family == U32_MAX && supports_compute && supports_transfer {
+                    count := min(it.queueCount, MAX_COMPUTE_QUEUES);
+
+                    queue_families[Gpu_Queue_Type.COMPUTE] = .{
+                        vk_family = it_index.(u32),
+                        count = count,
+                    };
+                    infos[queue_families_to_create] = .{
+                        family = it_index.(u32),
+                        count = count,
+                    };
+                    queue_families_to_create += 1;
+                }
+
+                if queue_families[Gpu_Queue_Type.TRANSFER].vk_family == U32_MAX && supports_transfer {
+                    count := min(it.queueCount, MAX_TRANSFER_QUEUES);
+                    queue_families[Gpu_Queue_Type.TRANSFER] = .{
+                        vk_family = it_index.(u32),
+                        count = count,
+                    };
+                    infos[queue_families_to_create] = .{
+                        family = it_index.(u32),
+                        count = count,
+                    };
+                    queue_families_to_create += 1;
+                }
+            }
+        }
+
+
+        for 0..queue_families_to_create-1 {
+            queue_create_infos[it] = .{
+                queueFamilyIndex = infos[it].family,
+                queueCount = infos[it].count,
                 pQueuePriorities = queue_priorities.data
             };
+            queue_family_indices[it] = infos[it].family;
         }
+        num_queue_families = queue_families_to_create;
     }
 
     // create the device:
@@ -942,13 +1028,39 @@ create_device :: () -> Gpu_Result {
             shaderInt16 = VK_TRUE,
         };
 
+        enabled_extensions: [..] *u8;
+        array_copy(*enabled_extensions, required_extensions);
+        {
+            available_extensions: [..] VkExtensionProperties;
+            extension_count: u32;
+            vkEnumerateDeviceExtensionProperties(vk_physical_device, null, *extension_count, null);
+            array_resize(*available_extensions, extension_count);
+            vkEnumerateDeviceExtensionProperties(vk_physical_device, null, *extension_count, available_extensions.data);
+
+            for * extension_to_check : optional_extensions {
+                if extension_to_check.name == null then continue;
+
+                extension_name := to_string(extension_to_check.name);
+
+                for available_extension: available_extensions {
+                    available_extension_name := to_string(available_extension.extensionName);
+                    if available_extension_name == extension_name {
+                        array_add(*enabled_extensions, extension_to_check.name);
+                        extension_to_check.supported = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+
         create_info := VkDeviceCreateInfo.{
             pNext = chain,
             queueCreateInfoCount = queue_create_infos.count.(u32),
             pQueueCreateInfos = queue_create_infos.data,
 
-            enabledExtensionCount = required_extensions.count.(u32),
-            ppEnabledExtensionNames = required_extensions.data,
+            enabledExtensionCount = enabled_extensions.count.(u32),
+            ppEnabledExtensionNames = enabled_extensions.data,
 
             pEnabledFeatures = *device_features,
         };
@@ -960,17 +1072,18 @@ create_device :: () -> Gpu_Result {
     // initialize the queues:
     {
         queue_index: u32 = 0;
-        for queue_create_infos {
-            for queue_index_in_family : 0..it.queueCount-1 {
-                vkGetDeviceQueue(vk_device, it.queueFamilyIndex, queue_index_in_family, *queues[queue_index].vk_queue);
-                assert(queues[queue_index].vk_queue != VK_NULL_HANDLE);
-
-                queues[queue_index].vk_family = it.queueFamilyIndex;
-                queues[queue_index].global_index = queue_index;
-
-                queue_index += 1;
+        for * queues {
+            if it.index_in_type >= queue_families[it.type].count {
+                continue;
             }
-            all_queue_family_indices[it_index] = it.queueFamilyIndex;
+
+            it.vk_family = queue_families[it.type].vk_family;
+            vkGetDeviceQueue(vk_device, it.vk_family, it.index_in_type, *queues[queue_index].vk_queue);
+            if it.vk_queue == VK_NULL_HANDLE {
+                return .FATAL_FAILED_TO_QUERY_QUEUE; // #todo: this doesn't need to be fatal but handling this is involved.
+            }
+            it.global_index = it_index.(u32);
+            queue_index += 1;
         }
 
         // create the timeline semaphores for each queue:
@@ -1008,15 +1121,18 @@ create_device :: () -> Gpu_Result {
     // load extension function pointers
     {
         loaded_all_pfns: bool = true;
+        // required pfns:
         #insert #run generate_get_device_proc_addr("vkCmdBeginRenderingKHR");
         #insert #run generate_get_device_proc_addr("vkCmdEndRenderingKHR");
+        if !loaded_all_pfns then return .FATAL_MISSING_REQUIRED_FEATURE;
+
+        // optional extension pfns:
         #insert #run generate_get_device_proc_addr("vkGetDescriptorSetLayoutSizeEXT");
         #insert #run generate_get_device_proc_addr("vkGetDescriptorSetLayoutBindingOffsetEXT");
         #insert #run generate_get_device_proc_addr("vkGetDescriptorSetLayoutBindingOffsetEXT");
         #insert #run generate_get_device_proc_addr("vkGetDescriptorEXT");
         #insert #run generate_get_device_proc_addr("vkCmdBindDescriptorBuffersEXT");
         #insert #run generate_get_device_proc_addr("vkCmdSetDescriptorBufferOffsetsEXT");
-        if !loaded_all_pfns then return .FATAL_MISSING_REQUIRED_FEATURE;
     }
 
     return .SUCCESS;
@@ -1033,6 +1149,22 @@ generate_get_device_proc_addr :: (proc_name: string) ->string #compile_time {
 
 // we remember the allocator passed into gpu_init and ensure all cpu allocations occur using that allocator.
 cpu_allocator: Allocator;
+
+Optional_Extension :: enum {
+    DESCRIPTOR_BUFFER :: 0;
+}
+
+Optional_Extension_Info :: struct {
+    name: *u8;
+    supported: bool;
+}
+
+optional_extensions: [#run enum_highest_value(Optional_Extension) + 1] Optional_Extension_Info;
+
+is_optional_ext_supported :: (ext: Optional_Extension) -> bool {
+    return optional_extensions[ext].supported;
+}
+
 requested_optional_features: Gpu_Optional_Features;
 
 vk_instance: VkInstance;
@@ -1041,13 +1173,15 @@ vk_physical_device_properties: VkPhysicalDeviceProperties2;
 vk_device: VkDevice;
 vma: VmaAllocator;
 
+supports_descriptor_buffers: bool;
+
 Queue :: struct {
     vk_queue: VkQueue;
     vk_family: u32;
     global_index: u32;
     index_in_type: u32;
     type: Gpu_Queue_Type;
-    
+
     timeline: VkSemaphore;
     timeline_value: u64;
 }
@@ -1065,7 +1199,13 @@ queues := Queue.[
 /** The number of queue families should always at most one per queue type. */
 NUM_QUEUE_FAMILIES :: #run enum_highest_value(Gpu_Queue_Type) + 1;
 
-all_queue_family_indices: [NUM_QUEUE_FAMILIES] u32;
+Queue_Family :: struct {
+    vk_family: u32;
+    count: u32;
+}
+queue_families: [NUM_QUEUE_FAMILIES] Queue_Family;
+queue_family_indices: [NUM_QUEUE_FAMILIES] u32;
+num_queue_families: u32;
 
 get_queue :: (queue_handle: Gpu_Queue) -> *Queue {
     queue_index := queue_handle - 1;
@@ -1098,7 +1238,7 @@ vkCmdEndRenderingKHR : PFN_vkCmdEndRenderingKHR;
 
             log("Vulkan Validation: %", to_string(msg));
         }
-        
+
         return VK_FALSE;
     }
 

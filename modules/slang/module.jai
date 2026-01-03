@@ -26,6 +26,8 @@
     }
 
     #load "linux.jai";
+} else #if OS == .MACOS {
+    #load "macos.jai";
 } else {
     #assert false "Unsupported OS for Slang";
 }
@@ -34,5 +36,6 @@
     slang_compiler :: #library,no_dll,link_always "win/slang-compiler";
 } else #if OS == .LINUX {
     libslang :: #library,no_dll,link_always "linux/libslang";
+} else #if OS == .MACOS {
+    libslang :: #library,link_always "mac/libslang";
 }
-
